@@ -1,9 +1,10 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, sleep;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'coin_data.dart';
+import 'rate_widget.dart';
 
 class PriceScreen extends StatefulWidget {
   @override
@@ -11,9 +12,16 @@ class PriceScreen extends StatefulWidget {
 }
 
 class _PriceScreenState extends State<PriceScreen> {
-
   String selectedValue = currenciesList[0];
+  bool isWaiting = true;
+  Map<String, String> coinData = {};
 
+
+  @override
+  void initState() {
+    super.initState();
+    newCurrencySelected(selectedValue);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,26 +33,9 @@ class _PriceScreenState extends State<PriceScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Padding(
-            padding: EdgeInsets.fromLTRB(18.0, 18.0, 18.0, 0),
-            child: Card(
-              color: Colors.lightBlueAccent,
-              elevation: 5.0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.0),
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 15.0, horizontal: 28.0),
-                child: Text(
-                  '1 BTC = ? $selectedValue',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20.0,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: buildRows(),
           ),
           Container(
             height: 150.0,
@@ -58,6 +49,21 @@ class _PriceScreenState extends State<PriceScreen> {
     );
   }
 
+  buildRows() {
+    return cryptoList
+        .map((e) => RateWidget(e, selectedValue, rateValue()))
+        .toList();
+  }
+
+  String rateValue() {
+    if (isWaiting) {
+      return "?";
+    } else {
+      var result = coinData[selectedValue];
+      return result == null ? "?" : result;
+    }
+  }
+
   CupertinoPicker buildCupertinoPicker() {
     List<Text> widgets = buildItemWidgets();
     return CupertinoPicker(
@@ -66,27 +72,26 @@ class _PriceScreenState extends State<PriceScreen> {
       onSelectedItemChanged: (selectedIndex) {
         setState(() {
           String? selectedData = widgets[selectedIndex].data;
-          if(selectedData != null) {
-            selectedValue = selectedData;
+          if (selectedData != null) {
+            newCurrencySelected(selectedData);
           }
         });
-
       },
     );
   }
 
   DropdownButton<String> buildDropdownButton() {
     return DropdownButton<String>(
-            value: selectedValue,
-            items: buildItems(),
-            onChanged: (newValue){
-              setState(() {
-                if(newValue != null) {
-                  selectedValue = newValue;
-                }
-              });
-            },
-          );
+      value: selectedValue,
+      items: buildItems(),
+      onChanged: (newValue) {
+        setState(() {
+          if (newValue != null) {
+            newCurrencySelected(newValue);
+          }
+        });
+      },
+    );
   }
 
   List<DropdownMenuItem<String>> buildItems() {
@@ -100,14 +105,37 @@ class _PriceScreenState extends State<PriceScreen> {
 
   List<Text> buildItemWidgets() {
     return currenciesList
-        .map((e) => Text(e),)
+        .map(
+          (e) => Text(e),
+        )
         .toList();
   }
 
   buildCurrencySelector() {
-    if(Platform.isIOS) {
+    if (Platform.isIOS) {
       return buildCupertinoPicker();
     }
     return buildDropdownButton();
   }
+
+  void newCurrencySelected(String currency) async {
+    selectedValue = currency;
+    isWaiting = true;
+    var data = await request(currency);
+    setState(() {
+      coinData = data;
+      isWaiting = false;
+    });
+  }
+}
+
+Future request(String currency) async {
+  //sleep(Duration(seconds: 2));
+  if (currency == "USD") {
+    return {"BTC": "11.11", "ETH": "22.11", "LTC": "33.11"};
+  }
+  if (currency == "GBP") {
+    return {"BTC": "11.22", "ETH": "22.22", "LTC": "33.22"};
+  }
+  return {"BTC": "11.33", "ETH": "22.33", "LTC": "33.33"};
 }
